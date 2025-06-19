@@ -31,7 +31,7 @@ export const getOrderById = async (req,res)=>{
         if (!orderId) {
             return res.status(400).json({ message: "Order ID is required" });
         }
-        const order = Order.findById(orderId).populate('user', 'name email').populate('items.product', 'name price');
+        const order = await Order.findById(orderId).populate('user', 'name email').populate('items.product', 'name price');
         if (!order) {
             return res.status(404).json({ message: "Order not found" });
         }
@@ -60,12 +60,12 @@ export const getMyorders = async (req,res)=>{
 export const updateOrder  = async(req,res)=>{
     const update = req.body;
     try {
-        const order = await Order.findOne({_id:Number(req.params.id)});
+        const order = await Order.findOne({_id: req.params.id});
         if (!order){
             return res.status(404).json({error : "Order not found !"});
         }
         const updatedOrder = await Order.findByIdAndUpdate(
-            {_id: Number(req.params.id)},
+            req.params.id,
             update,
             {new: true}
         );
@@ -76,4 +76,24 @@ export const updateOrder  = async(req,res)=>{
         res.status(500).json({error : "Internal server error !"});
     }
 }
-//TO ADD : DELETE ORDER && AUTO DELETE CANCELLED ORDERS 
+
+export const deleteOrder = async (req,res)=>{
+    const orderId = req.params.id;
+    try {
+        if (!orderId){
+            return res.status(400).json({error:"No specified order !"});
+        }
+        const order = await Order.findById(orderId);
+        if (!order){
+            return res.status(404).json({error:"Order Not found !"});
+        }
+        if(req.user._id.toString() !== order.user.toString()){
+            return res.status(403).json({error:"You are not allowed to delete this order !"});
+        }
+        await Order.findByIdAndDelete(orderId);
+        res.status(200).json({message: "Order deleted successfully"});
+    } catch (error) {
+        console.error("Error deleting order:", error);
+        res.status(500).json({error: "Internal server error !"});
+    }
+}
